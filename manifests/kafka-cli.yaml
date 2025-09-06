@@ -1,0 +1,25 @@
+# debug consumer
+apiVersion: v1
+kind: Pod
+metadata:
+  name: kafka-cli
+spec:
+  restartPolicy: Never
+  containers:
+  - name: kafka-cli
+    image: bitnami/kafka:3.8.0
+    command:
+      - sh
+      - -c
+      - |
+        echo "Starting consumer for task-topic..."
+        kafka-console-consumer.sh \
+          --bootstrap-server kafka:9092 \
+          --topic task-topic \
+          --from-beginning &
+        echo "Starting consumer for control-topic..."
+        kafka-console-consumer.sh \
+          --bootstrap-server kafka:9092 \
+          --topic control-topic \
+          --from-beginning &
+        wait
