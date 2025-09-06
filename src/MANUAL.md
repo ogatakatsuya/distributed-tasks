@@ -22,14 +22,14 @@ kubectl apply -f ./manifests/kafka.yaml
 
 #### 2.2 各サービスのデプロイ
 ```bash
-# Producerのデプロイ
-kubectl apply -f ./manifests/producer.yaml
-
 # Consumerのデプロイ
 kubectl apply -f ./manifests/consumer.yaml
 
 # Aggregatorのデプロイ
 kubectl apply -f ./manifests/aggregator.yaml
+
+# Producerのデプロイ
+kubectl apply -f ./manifests/producer.yaml
 ```
 
 ### 3. 動作確認
