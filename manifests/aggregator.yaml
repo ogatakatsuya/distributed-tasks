@@ -13,3 +13,18 @@ spec:
       - name: aggregator
         image: kafka-aggregator:latest
         imagePullPolicy: IfNotPresent
+        env:
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              name: aws-credentials
+              key: aws-access-key-id
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              name: aws-credentials
+              key: aws-secret-access-key
+        - name: AWS_DEFAULT_REGION
+          value: "ap-northeast-3"
+        - name: S3_BUCKET_NAME
+          value: "kafka-aggregated-images"
