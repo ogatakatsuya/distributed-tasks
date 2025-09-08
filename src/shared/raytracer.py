@@ -20,6 +20,9 @@ class Vec3:
     def __mul__(self, scalar: float) -> 'Vec3':
         return Vec3(self.x * scalar, self.y * scalar, self.z * scalar)
     
+    def __rmul__(self, scalar: float) -> 'Vec3':
+        return Vec3(self.x * scalar, self.y * scalar, self.z * scalar)
+    
     def dot(self, other: 'Vec3') -> float:
         return self.x * other.x + self.y * other.y + self.z * other.z
     
@@ -44,6 +47,7 @@ class Vec3:
             return Vec3(0, 0, 0)
         cos_t = math.sqrt(1.0 - sin_t2)
         return self * eta + normal * (eta * cos_i - cos_t)
+    
 
 
 @dataclass
@@ -80,17 +84,31 @@ class RayTracer:
         self.camera_pos = Vec3(0, 0, 0)
         self.view_distance = 1.0
         
-        # シンプルなシーン: 3つの球体（基本材質のみ）
+        # シーン: 中央に大きなガラス球、周りに複数の小さな球
         self.spheres = [
+            # 中央の大きなガラス球
+            Sphere(Vec3(0, 0, -3), 0.8, 
+                   Material(Vec3(0.95, 0.98, 1.0), reflectivity=0.0, transparency=0.95, refractive_index=1.52)),
+            
+            # 周りの小さな球たち
             # 赤い球（左）
-            Sphere(Vec3(-1.2, 0, -3), 0.5, 
+            Sphere(Vec3(-2.2, 0, -3), 0.4, 
                    Material(Vec3(0.8, 0.2, 0.2), reflectivity=0.0, transparency=0.0)),
-            # 緑の球（中央）
-            Sphere(Vec3(0, 0, -3), 0.5, 
+            # 緑の球（右）
+            Sphere(Vec3(2.2, 0, -3), 0.4, 
                    Material(Vec3(0.2, 0.8, 0.2), reflectivity=0.0, transparency=0.0)),
-            # 青い球（右）
-            Sphere(Vec3(1.2, 0, -3), 0.5, 
+            # 青い球（上）
+            Sphere(Vec3(0, 1.5, -3), 0.4, 
                    Material(Vec3(0.2, 0.2, 0.8), reflectivity=0.0, transparency=0.0)),
+            # 黄色の球（下）
+            Sphere(Vec3(0, -1.5, -3), 0.4, 
+                   Material(Vec3(0.8, 0.8, 0.2), reflectivity=0.0, transparency=0.0)),
+            # マゼンタの球（左上）
+            Sphere(Vec3(-1.8, 1.2, -3), 0.35, 
+                   Material(Vec3(0.8, 0.2, 0.8), reflectivity=0.0, transparency=0.0)),
+            # シアンの球（右下）
+            Sphere(Vec3(1.8, -1.2, -3), 0.35, 
+                   Material(Vec3(0.2, 0.8, 0.8), reflectivity=0.0, transparency=0.0)),
         ]
         
         # 環境光
@@ -121,8 +139,11 @@ class RayTracer:
         else:
             return -1.0
     
-    def trace_ray(self, ray: Ray) -> Vec3:
-        """レイをトレースして色を計算（シンプル版）"""
+    def trace_ray(self, ray: Ray, depth: int = 0, max_depth: int = 10) -> Vec3:
+        """レイをトレースして色を計算（反射・屈折対応版）"""
+        if depth >= max_depth:
+            return Vec3(0, 0, 0)
+            
         closest_t = float('inf')
         hit_sphere = None
         
@@ -145,17 +166,89 @@ class RayTracer:
         # 光源への方向
         light_dir = (self.light_pos - hit_point).normalize()
         
-        # 簡単なランバート拡散照明
+        # 基本的な拡散照明
         diffuse = max(0, normal.dot(light_dir))
+        base_color = self.ambient_color + hit_sphere.material.color * diffuse
         
-        # 最終的な色を計算
-        color = self.ambient_color + hit_sphere.material.color * diffuse
+        material = hit_sphere.material
+        
+        # ガラスのような透明材質の場合
+        if material.transparency > 0.5:  # 高透明度材質
+            # 反射成分を計算
+            reflected_dir = ray.direction.reflect(normal)
+            reflected_ray = Ray(hit_point + normal * 0.001, reflected_dir)
+            reflected_color = self.trace_ray(reflected_ray, depth + 1, max_depth)
+            
+            # 透過色（背景色）
+            transmitted_color = Vec3(0.2, 0.7, 1.0)  # 背景色
+            
+            # 強いフレネル効果
+            cos_theta = abs(ray.direction.dot(normal))
+            fresnel_factor = 0.25 + 0.75 * ((1.0 - cos_theta) ** 2)
+            
+            # 光沢効果（スペキュラーハイライト）
+            light_dir = (self.light_pos - hit_point).normalize()
+            view_dir = (ray.origin - hit_point).normalize()
+            half_vector = (light_dir + view_dir).normalize()
+            specular_intensity = max(0, normal.dot(half_vector)) ** 64  # 鋭い光沢
+            specular_highlight = Vec3(1.0, 1.0, 1.0) * specular_intensity * 0.8
+            
+            # 拡散照明
+            diffuse = max(0, normal.dot(light_dir)) * 0.05
+            glass_base = Vec3(0.95, 0.98, 1.0) * diffuse
+            
+            # 環境反射を強化
+            environment_reflection = reflected_color * 1.2
+            
+            # 全ての成分を合成
+            final_color = (environment_reflection * fresnel_factor + 
+                          transmitted_color * (1.0 - fresnel_factor) * 0.7 +
+                          specular_highlight +
+                          glass_base)
+            
+            # 色の範囲を調整
+            final_color = Vec3(
+                min(1.0, final_color.x),
+                min(1.0, final_color.y),
+                min(1.0, final_color.z)
+            )
+            
+        else:
+            # 通常の材質の場合
+            # 拡散色の貢献度を計算
+            diffuse_contribution = 1.0 - material.reflectivity - material.transparency
+            final_color = base_color * diffuse_contribution
+            
+            # 反射の処理
+            if material.reflectivity > 0:
+                reflected_dir = ray.direction.reflect(normal)
+                reflected_ray = Ray(hit_point + normal * 0.001, reflected_dir)
+                reflected_color = self.trace_ray(reflected_ray, depth + 1, max_depth)
+                final_color = final_color + reflected_color * material.reflectivity
+            
+            # 屈折（透明度）の処理
+            if material.transparency > 0:
+                entering = ray.direction.dot(normal) < 0
+                eta = 1.0 / material.refractive_index if entering else material.refractive_index
+                n = normal if entering else normal * -1.0
+                
+                refracted_dir = ray.direction.refract(n, eta)
+                if refracted_dir.length() > 0:
+                    offset = n * -0.001 if entering else n * 0.001
+                    refracted_ray = Ray(hit_point + offset, refracted_dir)
+                    refracted_color = self.trace_ray(refracted_ray, depth + 1, max_depth)
+                    final_color = final_color + refracted_color * material.transparency
+                else:
+                    reflected_dir = ray.direction.reflect(normal)
+                    reflected_ray = Ray(hit_point + normal * 0.001, reflected_dir)
+                    reflected_color = self.trace_ray(reflected_ray, depth + 1, max_depth)
+                    final_color = final_color + reflected_color * material.transparency
         
         # 色の範囲を[0,1]にクランプ
         return Vec3(
-            min(1.0, max(0.0, color.x)),
-            min(1.0, max(0.0, color.y)),
-            min(1.0, max(0.0, color.z))
+            min(1.0, max(0.0, final_color.x)),
+            min(1.0, max(0.0, final_color.y)),
+            min(1.0, max(0.0, final_color.z))
         )
     
     def render_pixel(self, row: int, col: int, samples: int) -> Tuple[float, float, float]:
