@@ -3,14 +3,9 @@
 各サービスのDockerイメージをビルドします：
 
 ```bash
-# Consumerイメージのビルド
-docker build -t kafka-consumer:latest -f ./src/consumer/Dockerfile ./src/consumer
-
-# Producerイメージのビルド
-docker build -t kafka-producer:latest -f ./src/producer/Dockerfile ./src/producer
-
-# Aggregatorイメージのビルド
-docker build -t kafka-aggregator:latest -f ./src/aggregator/Dockerfile ./src/aggregator
+docker build -t kafka-consumer:latest -f src/consumer/Dockerfile .
+docker build -t kafka-producer:latest -f src/producer/Dockerfile .
+docker build -t kafka-aggregator:latest -f src/aggregator/Dockerfile .
 ```
 
 ### 2. Kubernetesクラスターでのデプロイ
@@ -18,6 +13,43 @@ docker build -t kafka-aggregator:latest -f ./src/aggregator/Dockerfile ./src/agg
 #### 2.1 Kafkaクラスターの起動
 ```bash
 kubectl apply -f ./manifests/kafka.yaml
+```
+
+### 2.2 Kafkaのトピックを作成
+```bash
+kafka-topics.sh \
+  --create \
+  --bootstrap-server kafka:9092 \
+  --replication-factor 1 \
+  --partitions 1 \
+  --topic control-topic
+
+kafka-topics.sh \
+  --create \
+  --bootstrap-server kafka:9092 \
+  --replication-factor 1 \
+  --partitions 10 \
+  --topic task-topic
+
+kafka-topics.sh \
+  --create \
+  --bootstrap-server kafka:9092 \
+  --replication-factor 1 \
+  --partitions 1 \
+  --topic result-topic
+
+# describe
+kafka-topics.sh \
+  --describe \
+  --bootstrap-server localhost:9092 \
+  --topic task-topic
+
+# alter
+kafka-topics.sh \
+  --alter \
+  --bootstrap-server localhost:9092 \
+  --topic task-topic \
+  --partitions 10
 ```
 
 #### 2.2 各サービスのデプロイ
