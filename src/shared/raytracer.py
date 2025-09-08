@@ -84,38 +84,49 @@ class RayTracer:
         self.camera_pos = Vec3(0, 0, 0)
         self.view_distance = 1.0
         
-        # シーン: 中央に大きなガラス球、周りに複数の小さな球
+        # シーン: 3つの球の配置
         self.spheres = [
-            # 中央の大きなガラス球
-            Sphere(Vec3(0, 0, -3), 0.8, 
-                   Material(Vec3(0.95, 0.98, 1.0), reflectivity=0.0, transparency=0.95, refractive_index=1.52)),
+            # 透明なガラス球（左手前、少し左に移動）
+            Sphere(Vec3(-1.5, -0.4, -3.2), 0.5, 
+                   Material(Vec3(0.98, 0.99, 1.0), reflectivity=0.1, transparency=0.92, refractive_index=1.52)),
             
-            # 周りの小さな球たち
-            # 赤い球（左）
-            Sphere(Vec3(-2.2, 0, -3), 0.4, 
-                   Material(Vec3(0.8, 0.2, 0.2), reflectivity=0.0, transparency=0.0)),
-            # 緑の球（右）
-            Sphere(Vec3(2.2, 0, -3), 0.4, 
-                   Material(Vec3(0.2, 0.8, 0.2), reflectivity=0.0, transparency=0.0)),
-            # 青い球（上）
-            Sphere(Vec3(0, 1.5, -3), 0.4, 
-                   Material(Vec3(0.2, 0.2, 0.8), reflectivity=0.0, transparency=0.0)),
-            # 黄色の球（下）
-            Sphere(Vec3(0, -1.5, -3), 0.4, 
-                   Material(Vec3(0.8, 0.8, 0.2), reflectivity=0.0, transparency=0.0)),
-            # マゼンタの球（左上）
-            Sphere(Vec3(-1.8, 1.2, -3), 0.35, 
-                   Material(Vec3(0.8, 0.2, 0.8), reflectivity=0.0, transparency=0.0)),
-            # シアンの球（右下）
-            Sphere(Vec3(1.8, -1.2, -3), 0.35, 
-                   Material(Vec3(0.2, 0.8, 0.8), reflectivity=0.0, transparency=0.0)),
+            # 緑の球（中央やや左）- 反射なし
+            Sphere(Vec3(-0.3, -0.4, -3.8), 0.7, 
+                   Material(Vec3(0.4, 0.85, 0.4), reflectivity=0.0, transparency=0.0)),
+            
+            # グレーの球（右手前）
+            Sphere(Vec3(1.2, -0.4, -3.5), 0.6, 
+                   Material(Vec3(0.65, 0.65, 0.7), reflectivity=0.25, transparency=0.0)),
         ]
         
-        # 環境光
-        self.ambient_color = Vec3(0.1, 0.1, 0.1)
-        # 光源
-        self.light_pos = Vec3(2, 2, -1)
-        self.light_color = Vec3(1.0, 1.0, 1.0)
+        # コーネルボックス風の部屋構造（平面で構成）
+        self.room_spheres = [
+            # 床（白）
+            Sphere(Vec3(0, -1000, -4), 998.5, 
+                   Material(Vec3(0.9, 0.9, 0.9), reflectivity=0.1, transparency=0.0)),
+            
+            # 天井（白）
+            Sphere(Vec3(0, 1004, -4), 1000, 
+                   Material(Vec3(0.9, 0.9, 0.9), reflectivity=0.1, transparency=0.0)),
+            
+            # 後ろの壁（白/グレー）
+            Sphere(Vec3(0, 0, -1008), 1000, 
+                   Material(Vec3(0.85, 0.85, 0.85), reflectivity=0.05, transparency=0.0)),
+            
+            # 左の壁（ピンク）
+            Sphere(Vec3(-1004, 0, -4), 1000, 
+                   Material(Vec3(0.9, 0.4, 0.4), reflectivity=0.05, transparency=0.0)),
+            
+            # 右の壁（紫/青）
+            Sphere(Vec3(1004, 0, -4), 1000, 
+                   Material(Vec3(0.4, 0.4, 0.9), reflectivity=0.05, transparency=0.0)),
+        ]
+        
+        # 環境光（柔らかな照明）
+        self.ambient_color = Vec3(0.2, 0.2, 0.22)
+        # 光源（天井やや前方からの照明、参考画像に合わせて調整）
+        self.light_pos = Vec3(-0.5, 2.5, -2.5)
+        self.light_color = Vec3(0.95, 0.95, 1.0)
     
     def ray_sphere_intersect(self, ray: Ray, sphere: Sphere) -> float:
         """レイと球体の交点を計算（距離を返す、交差しない場合は-1）"""
@@ -139,7 +150,7 @@ class RayTracer:
         else:
             return -1.0
     
-    def trace_ray(self, ray: Ray, depth: int = 0, max_depth: int = 10) -> Vec3:
+    def trace_ray(self, ray: Ray, depth: int = 0, max_depth: int = 8) -> Vec3:
         """レイをトレースして色を計算（反射・屈折対応版）"""
         if depth >= max_depth:
             return Vec3(0, 0, 0)
@@ -147,8 +158,9 @@ class RayTracer:
         closest_t = float('inf')
         hit_sphere = None
         
-        # 最も近い球体を見つける
-        for sphere in self.spheres:
+        # 最も近い球体を見つける（通常の球とルーム構造の両方をチェック）
+        all_spheres = self.spheres + self.room_spheres
+        for sphere in all_spheres:
             t = self.ray_sphere_intersect(ray, sphere)
             if t > 0 and t < closest_t:
                 closest_t = t
@@ -179,8 +191,8 @@ class RayTracer:
             reflected_ray = Ray(hit_point + normal * 0.001, reflected_dir)
             reflected_color = self.trace_ray(reflected_ray, depth + 1, max_depth)
             
-            # 透過色（背景色）
-            transmitted_color = Vec3(0.2, 0.7, 1.0)  # 背景色
+            # 透過色（わずかに着色された透明感）
+            transmitted_color = Vec3(0.95, 0.97, 1.0)  # ほぼ透明
             
             # 強いフレネル効果
             cos_theta = abs(ray.direction.dot(normal))

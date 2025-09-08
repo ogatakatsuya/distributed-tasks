@@ -13,10 +13,10 @@ from schemas import PixelPosition
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
-# 画像設定
+# 画像設定（品質重視のバランス設定）
 IMAGE_WIDTH = 800
 IMAGE_HEIGHT = 800
-RAYS_PER_PIXEL = 50
+RAYS_PER_PIXEL = 30
 
 conf = {
     'bootstrap.servers': 'kafka:9092',
@@ -43,7 +43,7 @@ for row in range(IMAGE_HEIGHT):
         )
         
         # パーティショニング: 行番号でパーティション分散
-        partition = row % 10
+        partition = row % 20
         key = f"pixel_{row}_{col}"
         
         producer.produce(

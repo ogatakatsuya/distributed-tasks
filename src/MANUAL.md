@@ -49,7 +49,7 @@ kafka-topics.sh \
   --alter \
   --bootstrap-server localhost:9092 \
   --topic task-topic \
-  --partitions 10
+  --partitions 20
 ```
 
 #### 2.2 各サービスのデプロイ
