@@ -11,8 +11,8 @@ spec:
       restartPolicy: Never
       containers:
       - name: aggregator
-        image: kafka-aggregator:latest
-        imagePullPolicy: IfNotPresent
+        image: asia-northeast1-docker.pkg.dev/distributed-task-471604/distributed-task-repo/kafka-aggregator:latest
+        imagePullPolicy: Always
         env:
         - name: AWS_ACCESS_KEY_ID
           valueFrom:

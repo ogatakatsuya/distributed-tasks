@@ -11,5 +11,5 @@ spec:
       restartPolicy: Never
       containers:
       - name: producer
-        image: kafka-producer:latest
-        imagePullPolicy: IfNotPresent
+        image: asia-northeast1-docker.pkg.dev/distributed-task-471604/distributed-task-repo/kafka-producer:latest
+        imagePullPolicy: Always
