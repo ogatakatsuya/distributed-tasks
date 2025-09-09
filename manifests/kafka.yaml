@@ -36,8 +36,12 @@ spec:
       labels:
         app: kafka
     spec:
+      securityContext:
+        fsGroup: 1001 
       containers:
         - name: kafka
+          securityContext:
+            runAsUser: 1001
           image: bitnami/kafka:3.8.0
           ports:
             - containerPort: 9092
